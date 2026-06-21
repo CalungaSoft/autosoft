@@ -28,14 +28,13 @@ $path  = trim($uri, '/');
 $parts = $path === '' ? [] : explode('/', $path);
 $method = $_SERVER['REQUEST_METHOD'];
 
-/* --- Painel administrativo ------------------------------------------- */
-if (($parts[0] ?? '') === 'admin') {
-    admin_router(array_slice($parts, 1), $method);
-    exit;
-}
-
-/* --- Site público ---------------------------------------------------- */
+/* --- Routing -------------------------------------------------------- */
 try {
+    if (($parts[0] ?? '') === 'admin') {
+        admin_router(array_slice($parts, 1), $method);
+        exit;
+    }
+
     switch ($parts[0] ?? '') {
         case '':
             page_home();
@@ -91,6 +90,18 @@ try {
     }
 } catch (Throwable $ex) {
     http_response_code(500);
-    echo '<pre style="padding:24px;font-family:monospace">Erro: '
-        . e($ex->getMessage()) . "\n" . e($ex->getFile()) . ':' . $ex->getLine() . '</pre>';
+    if (($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest') {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'ok'    => false,
+            'error' => $ex->getMessage(),
+            'where' => basename($ex->getFile()) . ':' . $ex->getLine(),
+        ]);
+    } else {
+        echo '<pre style="padding:24px;font-family:monospace;background:#fff5f5;border:1px solid #f3c3c8;color:#93101d;border-radius:8px;margin:24px;white-space:pre-wrap">'
+            . '<strong>Erro #' . e(get_class($ex)) . '</strong>' . "\n"
+            . e($ex->getMessage()) . "\n\n"
+            . e($ex->getFile()) . ':' . $ex->getLine() . "\n\n"
+            . e($ex->getTraceAsString()) . '</pre>';
+    }
 }
